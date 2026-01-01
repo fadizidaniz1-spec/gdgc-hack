@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "stadium-booking",
+    "slug": "stadium-booking",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "scheme": "stadiumbook",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.stadiumbook.app",
+      "config": {
+        "googleMapsApiKey": "AIzaSyBQehTjxRaWFPs2fyPGmDa9CLeb4ALQk58"
+      },
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "نحتاج إلى موقعك لعرض الملاعب القريبة منك"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.stadiumbook.app",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBQehTjxRaWFPs2fyPGmDa9CLeb4ALQk58"
+        }
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

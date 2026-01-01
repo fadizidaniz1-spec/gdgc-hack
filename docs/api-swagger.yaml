@@ -1,0 +1,802 @@
+openapi: 3.0.3
+info:
+  title: Stadium Booking API
+  description: |
+    REST API for Stadium Booking mobile application.
+    This API handles authentication, stadium management, bookings, and matchmaking features.
+  version: 1.0.0
+  contact:
+    name: Stadium Booking Team
+    email: api@stadiumbook.dz
+
+servers:
+  - url: https://api.stadiumbook.dz/v1
+    description: Production server
+  - url: https://staging-api.stadiumbook.dz/v1
+    description: Staging server
+  - url: http://localhost:3000/v1
+    description: Development server
+
+tags:
+  - name: Auth
+    description: Authentication & User Management
+  - name: Users
+    description: User Profile Operations
+  - name: Stadiums
+    description: Stadium Management
+  - name: Bookings
+    description: Booking Operations
+  - name: Matches
+    description: Matchmaking Features
+  - name: Notifications
+    description: Push Notifications
+
+paths:
+  # ==================== AUTH ====================
+  /auth/send-otp:
+    post:
+      tags: [Auth]
+      summary: Send OTP to phone number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneNumber]
+              properties:
+                phoneNumber:
+                  type: string
+                  example: "+213555123456"
+      responses:
+        '200':
+          description: OTP sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  message: { type: string, example: "OTP sent successfully" }
+                  expiresIn: { type: integer, example: 300 }
+        '429':
+          description: Too many requests
+          
+  /auth/verify-otp:
+    post:
+      tags: [Auth]
+      summary: Verify OTP and login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneNumber, otp]
+              properties:
+                phoneNumber: { type: string, example: "+213555123456" }
+                otp: { type: string, example: "1234" }
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      accessToken: { type: string }
+                      refreshToken: { type: string }
+                      user: { $ref: '#/components/schemas/User' }
+        '401':
+          description: Invalid OTP
+
+  /auth/refresh-token:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken: { type: string }
+                  refreshToken: { type: string }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout user
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Logged out successfully
+
+  # ==================== USERS ====================
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get current user profile
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+    put:
+      tags: [Users]
+      summary: Update user profile
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /users/me/avatar:
+    post:
+      tags: [Users]
+      summary: Upload user avatar
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Avatar uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  avatarUrl: { type: string }
+
+  /users/me/notifications:
+    get:
+      tags: [Users]
+      summary: Get notification settings
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Notification settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettings'
+    put:
+      tags: [Users]
+      summary: Update notification settings
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationSettings'
+      responses:
+        '200':
+          description: Settings updated
+
+  # ==================== STADIUMS ====================
+  /stadiums:
+    get:
+      tags: [Stadiums]
+      summary: Get all stadiums
+      parameters:
+        - name: latitude
+          in: query
+          schema: { type: number, example: 36.7538 }
+        - name: longitude
+          in: query
+          schema: { type: number, example: 3.0588 }
+        - name: radius
+          in: query
+          schema: { type: integer, default: 10, description: "Radius in km" }
+        - name: fieldSize
+          in: query
+          schema: { type: string, enum: ['5v5', '7v7', '11v11'] }
+        - name: maxPrice
+          in: query
+          schema: { type: integer }
+        - name: sortBy
+          in: query
+          schema: { type: string, enum: ['distance', 'price', 'rating'], default: 'distance' }
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: List of stadiums
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Stadium' }
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /stadiums/{id}:
+    get:
+      tags: [Stadiums]
+      summary: Get stadium details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Stadium details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StadiumDetail'
+        '404':
+          description: Stadium not found
+
+  /stadiums/{id}/availability:
+    get:
+      tags: [Stadiums]
+      summary: Get stadium availability
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: date
+          in: query
+          required: true
+          schema: { type: string, format: date, example: "2025-01-15" }
+      responses:
+        '200':
+          description: Available time slots
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  date: { type: string }
+                  slots:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        time: { type: string, example: "18:00" }
+                        available: { type: boolean }
+                        price: { type: integer }
+
+  /stadiums/{id}/reviews:
+    get:
+      tags: [Stadiums]
+      summary: Get stadium reviews
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Stadium reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Review' }
+    post:
+      tags: [Stadiums]
+      summary: Add stadium review
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating]
+              properties:
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                comment: { type: string }
+      responses:
+        '201':
+          description: Review added
+
+  # ==================== BOOKINGS ====================
+  /bookings:
+    get:
+      tags: [Bookings]
+      summary: Get user bookings
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: ['pending', 'confirmed', 'cancelled', 'completed'] }
+      responses:
+        '200':
+          description: User bookings
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Booking' }
+    post:
+      tags: [Bookings]
+      summary: Create new booking
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingCreate'
+      responses:
+        '201':
+          description: Booking created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          description: Time slot not available
+
+  /bookings/{id}:
+    get:
+      tags: [Bookings]
+      summary: Get booking details
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Booking details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDetail'
+
+  /bookings/{id}/cancel:
+    post:
+      tags: [Bookings]
+      summary: Cancel booking
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        '200':
+          description: Booking cancelled
+        '400':
+          description: Cannot cancel (too late)
+
+  /bookings/{id}/payment:
+    post:
+      tags: [Bookings]
+      summary: Process payment
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [paymentMethod]
+              properties:
+                paymentMethod: { type: string, enum: ['cash', 'card', 'ccp', 'baridi_mob'] }
+                cardToken: { type: string, description: "Required for card payment" }
+      responses:
+        '200':
+          description: Payment processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  transactionId: { type: string }
+                  status: { type: string }
+
+  # ==================== MATCHES ====================
+  /matches:
+    get:
+      tags: [Matches]
+      summary: Get available matches
+      parameters:
+        - name: latitude
+          in: query
+          schema: { type: number }
+        - name: longitude
+          in: query
+          schema: { type: number }
+        - name: skillLevel
+          in: query
+          schema: { type: string, enum: ['beginner', 'intermediate', 'advanced', 'professional'] }
+        - name: fieldSize
+          in: query
+          schema: { type: string, enum: ['5v5', '7v7', '11v11'] }
+        - name: date
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        '200':
+          description: Available matches
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Match' }
+    post:
+      tags: [Matches]
+      summary: Create new match
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MatchCreate'
+      responses:
+        '201':
+          description: Match created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Match'
+
+  /matches/{id}:
+    get:
+      tags: [Matches]
+      summary: Get match details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Match details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MatchDetail'
+
+  /matches/{id}/join:
+    post:
+      tags: [Matches]
+      summary: Join a match
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Joined match
+        '400':
+          description: Match is full
+
+  /matches/{id}/leave:
+    post:
+      tags: [Matches]
+      summary: Leave a match
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Left match
+
+  /matches/{id}/players:
+    get:
+      tags: [Matches]
+      summary: Get match players
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Match players
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/MatchPlayer' }
+
+  # ==================== NOTIFICATIONS ====================
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: Get user notifications
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: User notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Notification' }
+
+  /notifications/register-device:
+    post:
+      tags: [Notifications]
+      summary: Register device for push notifications
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, platform]
+              properties:
+                token: { type: string }
+                platform: { type: string, enum: ['ios', 'android'] }
+      responses:
+        '200':
+          description: Device registered
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id: { type: string, example: "usr_123456" }
+        phoneNumber: { type: string, example: "+213555123456" }
+        name: { type: string, example: "أحمد" }
+        avatar: { type: string, nullable: true }
+        position: { type: string, enum: ['goalkeeper', 'defender', 'midfielder', 'forward'] }
+        skillLevel: { type: string, enum: ['beginner', 'intermediate', 'advanced', 'professional'] }
+        profileComplete: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    UserUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        position: { type: string }
+        skillLevel: { type: string }
+
+    NotificationSettings:
+      type: object
+      properties:
+        bookingUpdates: { type: boolean, default: true }
+        matchInvites: { type: boolean, default: true }
+        promotions: { type: boolean, default: false }
+        reminders: { type: boolean, default: true }
+        chatMessages: { type: boolean, default: true }
+
+    Stadium:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string, example: "Stade El Harrach" }
+        address: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
+        distance: { type: number, description: "Distance in km" }
+        fieldSize: { type: string, enum: ['5v5', '7v7', '11v11'] }
+        pricePerHour: { type: integer, example: 5000 }
+        rating: { type: number, example: 4.5 }
+        image: { type: string }
+        isOpen: { type: boolean }
+
+    StadiumDetail:
+      allOf:
+        - $ref: '#/components/schemas/Stadium'
+        - type: object
+          properties:
+            description: { type: string }
+            amenities: { type: array, items: { type: string } }
+            images: { type: array, items: { type: string } }
+            openingHours:
+              type: object
+              properties:
+                open: { type: string, example: "08:00" }
+                close: { type: string, example: "23:00" }
+            contactPhone: { type: string }
+            totalReviews: { type: integer }
+
+    Review:
+      type: object
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        userName: { type: string }
+        userAvatar: { type: string }
+        rating: { type: integer }
+        comment: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    Booking:
+      type: object
+      properties:
+        id: { type: string }
+        stadiumId: { type: string }
+        stadiumName: { type: string }
+        stadiumImage: { type: string }
+        date: { type: string, format: date }
+        startTime: { type: string, example: "18:00" }
+        endTime: { type: string, example: "19:00" }
+        duration: { type: integer, description: "Duration in hours" }
+        totalPrice: { type: integer }
+        status: { type: string, enum: ['pending', 'confirmed', 'cancelled', 'completed'] }
+        paymentStatus: { type: string, enum: ['pending', 'paid', 'refunded'] }
+        createdAt: { type: string, format: date-time }
+
+    BookingCreate:
+      type: object
+      required: [stadiumId, date, startTime, duration]
+      properties:
+        stadiumId: { type: string }
+        date: { type: string, format: date }
+        startTime: { type: string, example: "18:00" }
+        duration: { type: integer, minimum: 1, maximum: 4 }
+        notes: { type: string }
+
+    BookingDetail:
+      allOf:
+        - $ref: '#/components/schemas/Booking'
+        - type: object
+          properties:
+            stadium: { $ref: '#/components/schemas/Stadium' }
+            paymentMethod: { type: string }
+            transactionId: { type: string }
+            cancellationReason: { type: string }
+
+    Match:
+      type: object
+      properties:
+        id: { type: string }
+        stadiumId: { type: string }
+        stadiumName: { type: string }
+        stadiumImage: { type: string }
+        stadiumAddress: { type: string }
+        date: { type: string, format: date }
+        time: { type: string, example: "18:00" }
+        fieldSize: { type: string, enum: ['5v5', '7v7', '11v11'] }
+        skillLevel: { type: string }
+        slotsNeeded: { type: integer }
+        maxPlayers: { type: integer }
+        currentPlayers: { type: integer }
+        pricePerPlayer: { type: integer }
+        organizer:
+          type: object
+          properties:
+            id: { type: string }
+            name: { type: string }
+            avatar: { type: string }
+        status: { type: string, enum: ['open', 'full', 'in_progress', 'completed', 'cancelled'] }
+        createdAt: { type: string, format: date-time }
+
+    MatchCreate:
+      type: object
+      required: [stadiumId, date, time, fieldSize, skillLevel, slotsNeeded, pricePerPlayer]
+      properties:
+        stadiumId: { type: string }
+        date: { type: string, format: date }
+        time: { type: string }
+        fieldSize: { type: string, enum: ['5v5', '7v7', '11v11'] }
+        skillLevel: { type: string, enum: ['beginner', 'intermediate', 'advanced', 'professional'] }
+        slotsNeeded: { type: integer, minimum: 1 }
+        pricePerPlayer: { type: integer }
+        notes: { type: string }
+
+    MatchDetail:
+      allOf:
+        - $ref: '#/components/schemas/Match'
+        - type: object
+          properties:
+            stadium: { $ref: '#/components/schemas/Stadium' }
+            players:
+              type: array
+              items: { $ref: '#/components/schemas/MatchPlayer' }
+            notes: { type: string }
+            rules: { type: array, items: { type: string } }
+
+    MatchPlayer:
+      type: object
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        name: { type: string }
+        avatar: { type: string }
+        position: { type: string }
+        skillLevel: { type: string }
+        isOrganizer: { type: boolean }
+        joinedAt: { type: string, format: date-time }
+
+    Notification:
+      type: object
+      properties:
+        id: { type: string }
+        type: { type: string, enum: ['booking', 'match', 'payment', 'system'] }
+        title: { type: string }
+        body: { type: string }
+        data: { type: object }
+        read: { type: boolean }
+        createdAt: { type: string, format: date-time }
+
+    Pagination:
+      type: object
+      properties:
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }
+
+    Error:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
