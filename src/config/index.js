@@ -12,7 +12,7 @@ export const CONFIG = {
   USE_GOOGLE_PLACES: false, // Set to false - using backend for stadiums
   
   // Google Places API (for stadium search)
-  GOOGLE_PLACES_API_KEY: 'AIzaSyBQehTjxRaWFPs2fyPGmDa9CLeb4ALQk58',
+  GOOGLE_PLACES_API_KEY: '',
   
   // Google OAuth Client IDs
   GOOGLE_EXPO_CLIENT_ID: '546986289081-ubfvi7jg5n2cggf3ghgn3ga3uafavv4p.apps.googleusercontent.com',
@@ -37,3 +37,4 @@ export const CONFIG = {
 // Environment check
 export const isDevelopment = __DEV__;
 export const isProduction = !__DEV__;
+
